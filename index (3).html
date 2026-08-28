@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>HIIT Trainer</title>
+<meta name="theme-color" content="#120a1f" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<style>
+  :root{
+    --bg:#120a1f;
+    --bg-elevated:#1e1030;
+    --bg-card:#241539;
+    --accent:#a855f7;
+    --accent-2:#7c3aed;
+    --accent-soft:#c084fc;
+    --text:#f3eefb;
+    --text-dim:#b8a9cf;
+    --success:#4ade80;
+    --warning:#fbbf24;
+    --danger:#f87171;
+    --ring-track:rgba(255,255,255,0.08);
+    --safe-top:env(safe-area-inset-top,0px);
+    --safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  body{
+    background:
+      radial-gradient(ellipse 120% 60% at 50% -10%, rgba(168,85,247,0.25), transparent 60%),
+      var(--bg);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  #ecg-strip{
+    width:100%;
+    height:34px;
+    display:block;
+    opacity:0.55;
+    flex-shrink:0;
+    padding-top:var(--safe-top);
+  }
+  #ecg-strip path{
+    fill:none;
+    stroke:var(--accent-soft);
+    stroke-width:2;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    filter:drop-shadow(0 0 4px rgba(168,85,247,0.6));
+  }
+  main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:8px 20px calc(24px + var(--safe-bottom));
+    max-width:480px;
+    margin:0 auto;
+    width:100%;
+  }
+  .eyebrow{
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    font-size:12px;
+    font-weight:700;
+    color:var(--accent-soft);
+    margin:0 0 4px;
+    text-align:center;
+  }
+  h1{
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+    margin:0 0 4px;
+    text-align:center;
+  }
+  .subtitle{
+    color:var(--text-dim);
+    font-size:14px;
+    margin:0 0 24px;
+    line-height:1.5;
+    text-align:center;
+  }
+  .screen{
+    display:none;
+    width:100%;
+    flex-direction:column;
+    align-items:center;
+    animation:fadein 0.35s ease;
+  }
+  .screen.active{display:flex;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .card{
+    width:100%;
+    background:var(--bg-card);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:18px;
+    padding:18px;
+    margin-bottom:14px;
+  }
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--danger);flex-shrink:0;transition:background .2s;}
+  .status-dot.on{background:var(--success);}
+  .label{font-size:13px;color:var(--text-dim);}
+  .value{font-size:15px;font-weight:600;}
+
+  button{
+    font-family:inherit;
+    border:none;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .btn{
+    width:100%;
+    padding:16px 20px;
+    border-radius:14px;
+    font-size:16px;
+    font-weight:700;
+    background:var(--bg-elevated);
+    color:var(--text);
+    border:1px solid rgba(255,255,255,0.1);
+    transition:transform .12s ease, background .15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border:none;
+    box-shadow:0 6px 20px rgba(124,58,237,0.4);
+  }
+  .btn-primary:disabled{
+    opacity:0.4;
+    box-shadow:none;
+    pointer-events:none;
+  }
+  .btn-ghost{
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.15);
+    color:var(--text-dim);
+    padding:12px 16px;
+    font-size:14px;
+    font-weight:600;
+    border-radius:12px;
+  }
+  .btn+.btn{margin-top:10px;}
+  .btn-row{display:flex;gap:10px;width:100%;}
+  .btn-row .btn{flex:1;}
+
+  /* Ring timer */
+  .ring-wrap{
+    position:relative;
+    width:260px;
+    height:260px;
+    margin:10px 0 6px;
+  }
+  .ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .ring-track{fill:none;stroke:var(--ring-track);stroke-width:14;}
+  .ring-progress{
+    fill:none;
+    stroke:url(#ringGradient);
+    stroke-width:14;
+    stroke-linecap:round;
+    transition:stroke-dashoffset 0.3s linear;
+  }
+  .ring-center{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+  }
+  .timer-num{
+    font-size:52px;
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-0.02em;
+    line-height:1;
+  }
+  .timer-sub{
+    font-size:12px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    margin-top:6px;
+  }
+  .ring-wrap.paused .ring-progress{stroke:var(--danger);}
+  .ring-wrap.hold .ring-progress{filter:drop-shadow(0 0 10px rgba(168,85,247,0.7));}
+
+  .hr-badge{
+    display:flex;align-items:baseline;gap:6px;
+    margin-bottom:14px;
+    justify-content:center;
+  }
+  .hr-badge .n{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .hr-badge .u{font-size:14px;color:var(--text-dim);}
+  .hr-badge svg{width:22px;height:22px;margin-right:4px;}
+
+  .status-msg{
+    text-align:center;
+    font-size:16px;
+    font-weight:700;
+    min-height:24px;
+    margin-bottom:18px;
+  }
+  .status-msg.warn{color:var(--danger);}
+  .status-msg.ok{color:var(--success);}
+
+  .peak-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:var(--bg-elevated);
+    border:1px solid rgba(255,255,255,0.1);
+    padding:8px 16px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    margin-bottom:18px;
+  }
+
+  /* Breathing */
+  .breath-circle{
+    width:200px;height:200px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(168,85,247,0.55), rgba(124,58,237,0.15));
+    border:2px solid var(--accent-soft);
+    display:flex;align-items:center;justify-content:center;
+    margin:14px 0;
+    transition:transform 1s ease-in-out;
+  }
+  .breath-circle .bt{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;}
+  .breath-phase{
+    font-size:15px;font-weight:700;
+    text-transform:uppercase;letter-spacing:0.08em;
+    color:var(--accent-soft);
+    margin-bottom:4px;
+    text-align:center;
+  }
+  .breath-rep{color:var(--text-dim);font-size:13px;margin-bottom:6px;text-align:center;}
+
+  .music-note{
+    display:flex;align-items:center;gap:8px;
+    font-size:13px;color:var(--text-dim);
+    margin-top:6px;
+    justify-content:center;
+  }
+
+  .info-note{
+    font-size:12.5px;
+    color:var(--text-dim);
+    background:var(--bg-elevated);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:12px 14px;
+    line-height:1.5;
+    margin-bottom:16px;
+  }
+
+  footer{
+    text-align:center;
+    padding:10px 0 4px;
+    font-size:11px;
+    color:rgba(184,169,207,0.5);
+  }
+
+  .toast{
+    position:fixed;
+    left:16px;right:16px;
+    bottom:calc(16px + var(--safe-bottom));
+    background:var(--bg-elevated);
+    border:1px solid rgba(255,255,255,0.15);
+    color:var(--text);
+    padding:14px 16px;
+    border-radius:12px;
+    font-size:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    transform:translateY(120%);
+    transition:transform .3s ease;
+    z-index:50;
+    max-width:448px;
+    margin:0 auto;
+  }
+  .toast.show{transform:translateY(0);}
+
+  select.device-select{
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    background:var(--bg-elevated);
+    color:var(--text);
+    border:1px solid rgba(255,255,255,0.15);
+    font-size:14px;
+    margin-top:10px;
+  }
+
+  .stop-link{
+    margin-top:18px;
+    background:none;border:none;
+    color:var(--text-dim);
+    font-size:12px;
+    text-decoration:underline;
+    padding:8px;
+  }
+</style>
+</head>
+<body>
+
+<svg id="ecg-strip" viewBox="0 0 400 34" preserveAspectRatio="none">
+  <path id="ecg-path" d="M0,17 L60,17 L72,17 L80,4 L90,30 L98,17 L400,17" />
+</svg>
+
+<main>
+  <!-- SETUP SCREEN -->
+  <section class="screen active" id="screen-setup">
+    <p class="eyebrow">HIIT Trainer</p>
+    <h1>Klaar om te pieken?</h1>
+    <p class="subtitle">Koppel je hartslagband. Spotify is optioneel — je kunt ook zonder muziek trainen.</p>
+
+    <div class="card">
+      <div class="row">
+        <div class="row" style="gap:10px;">
+          <span class="status-dot" id="dot-hr"></span>
+          <div>
+            <div class="value">Hartslagband</div>
+            <div class="label" id="hr-status-label">Niet gekoppeld</div>
+          </div>
+        </div>
+        <div class="value" id="hr-live" style="font-size:20px;">–</div>
+      </div>
+      <button class="btn" id="btn-connect-hr" style="margin-top:14px;">Koppel hartslagband</button>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="row" style="gap:10px;">
+          <span class="status-dot" id="dot-spotify"></span>
+          <div>
+            <div class="value">Spotify (optioneel)</div>
+            <div class="label" id="spotify-status-label">Niet verbonden</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn" id="btn-connect-spotify" style="margin-top:14px;">Verbind met Spotify</button>
+      <select class="device-select" id="device-select" style="display:none;"></select>
+    </div>
+
+    <button class="btn btn-primary" id="btn-start-training" disabled>Start training</button>
+  </section>
+
+  <!-- PEAK SCREEN -->
+  <section class="screen" id="screen-peak">
+    <p class="eyebrow">Onderdeel 1 · Hartslag boven de 130</p>
+    <div class="peak-pill" id="peak-pill">Piek 1 van 4</div>
+    <div class="hr-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+      <span class="n" id="peak-hr-num">–</span><span class="u">bpm</span>
+    </div>
+    <div class="ring-wrap" id="peak-ring">
+      <svg viewBox="0 0 200 200">
+        <defs>
+          <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#a855f7"/>
+            <stop offset="100%" stop-color="#7c3aed"/>
+          </linearGradient>
+        </defs>
+        <circle class="ring-track" cx="100" cy="100" r="88"/>
+        <circle class="ring-progress" id="peak-ring-progress" cx="100" cy="100" r="88" stroke-dasharray="553" stroke-dashoffset="553"/>
+      </svg>
+      <div class="ring-center">
+        <div class="timer-num" id="peak-timer-num">1:00</div>
+        <div class="timer-sub">volhouden</div>
+      </div>
+    </div>
+    <div class="status-msg" id="peak-status">Wacht tot hartslag op of boven 130 is…</div>
+    <div class="music-note">♪ <span id="peak-music-note">Werk-playlist speelt</span></div>
+
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="btn btn-ghost" id="btn-skip-peak">Piek overslaan</button>
+      <button class="btn btn-ghost skip-section1-btn">Onderdeel overslaan</button>
+    </div>
+    <button class="stop-link" id="btn-stop-1">Training stoppen</button>
+  </section>
+
+  <!-- RECOVERY SCREEN -->
+  <section class="screen" id="screen-recovery">
+    <p class="eyebrow" id="recovery-eyebrow">Onderdeel 1 · Herstel</p>
+    <h1 id="recovery-title">Breng je hartslag naar beneden</h1>
+    <div class="hr-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+      <span class="n" id="recovery-hr-num">–</span><span class="u">bpm · doel ≤ 100</span>
+    </div>
+
+    <div id="recovery-waiting">
+      <p class="subtitle">Rustig ademhalen. Na 30 seconden start automatisch een ademhalingsoefening als je hartslag nog niet gezakt is.</p>
+      <div class="music-note">♪ Rustgevende muziek</div>
+    </div>
+
+    <div id="recovery-breathing" style="display:none;flex-direction:column;align-items:center;width:100%;">
+      <div class="breath-phase" id="breath-phase">Adem in</div>
+      <div class="breath-circle" id="breath-circle">
+        <span class="bt" id="breath-count">1</span>
+      </div>
+      <div class="breath-rep" id="breath-rep">Herhaling 1 (minimaal 4)</div>
+      <div class="music-note">♪ Rustgevende muziek</div>
+    </div>
+
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="btn btn-ghost" id="btn-skip-recovery">Herstel overslaan</button>
+      <button class="btn btn-ghost skip-section1-btn">Onderdeel overslaan</button>
+    </div>
+    <button class="stop-link" id="btn-stop-2">Training stoppen</button>
+  </section>
+
+  <!-- REST SCREEN (3x 10 min, manual start) -->
+  <section class="screen" id="screen-rest">
+    <p class="eyebrow">Onderdeel 2 · 3x 10 minuten</p>
+    <h1 id="rest-title">Rustperiode 1 van 3</h1>
+    <p class="subtitle">Geen muziek tijdens deze rust. Start de timer zelf wanneer je er klaar voor bent.</p>
+
+    <div class="info-note">
+      De timer blijft doorlopen als je naar een andere app gaat (bijv. om te gamen), en toont bij terugkomst altijd de juiste resterende tijd. Een meldingsgeluid proberen we te sturen zodra de tijd om is, maar Android kan dit niet altijd garanderen als je telefoon lang stil ligt. Zet voor de zekerheid ook een losse wekker/timer op je telefoon als back-up.
+    </div>
+
+    <div class="ring-wrap" id="rest-ring">
+      <svg viewBox="0 0 200 200">
+        <circle class="ring-track" cx="100" cy="100" r="88"/>
+        <circle class="ring-progress" id="rest-ring-progress" cx="100" cy="100" r="88" stroke-dasharray="553" stroke-dashoffset="553" stroke="url(#ringGradient)"/>
+      </svg>
+      <div class="ring-center">
+        <div class="timer-num" id="rest-timer-num">10:00</div>
+        <div class="timer-sub">rust</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-rest-start">Start rusttimer</button>
+    <button class="btn btn-ghost" id="btn-skip-rest" style="margin-top:10px;">Onderdeel overslaan</button>
+    <button class="stop-link" id="btn-stop-3">Training stoppen</button>
+  </section>
+
+  <!-- FINAL SCREEN (432hz + 20 min) -->
+  <section class="screen" id="screen-final">
+    <p class="eyebrow">Onderdeel 3 · 20 minuten</p>
+    <h1>432Hz · 20 minuten</h1>
+    <p class="subtitle">Zet je playlist klaar en start de laatste 20 minuten wanneer je zover bent.</p>
+
+    <div class="ring-wrap" id="final-ring">
+      <svg viewBox="0 0 200 200">
+        <circle class="ring-track" cx="100" cy="100" r="88"/>
+        <circle class="ring-progress" id="final-ring-progress" cx="100" cy="100" r="88" stroke-dasharray="553" stroke-dashoffset="553" stroke="url(#ringGradient)"/>
+      </svg>
+      <div class="ring-center">
+        <div class="timer-num" id="final-timer-num">20:00</div>
+        <div class="timer-sub">afkoeling</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-final-start">Start 432Hz muziek + timer</button>
+    <button class="btn btn-ghost" id="btn-skip-final" style="margin-top:10px;">Onderdeel overslaan</button>
+  </section>
+
+  <!-- DONE SCREEN -->
+  <section class="screen" id="screen-done">
+    <p class="eyebrow">Voltooid</p>
+    <h1>Goed gedaan! 💪</h1>
+    <p class="subtitle">Je hebt de training afgerond.</p>
+    <button class="btn btn-primary" id="btn-restart">Terug naar start</button>
+  </section>
+
+  <footer>HIIT Trainer · draait lokaal in je browser</footer>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ============ CONFIG ============ */
+  const CONFIG = {
+    spotifyClientId: "b29daf7d8f5646f89c90a0241567a928",
+    workoutPlaylistUri: "spotify:playlist:4oLQeu7X0e02pbepnua8ON",
+    calmPlaylistUri: "spotify:playlist:4pJLu4cXOlHn4kYAYGzSEi",
+    hz432PlaylistUri: "spotify:playlist:25nIP7FSBS7955DeA0bxJp",
+    hrPeakThreshold: 130,
+    hrRecoveryThreshold: 100,
+    peakHoldSeconds: 60,
+    totalPeaks: 4,
+    recoveryWaitBeforeBreathing: 30,
+    breathingMinReps: 4,
+    breathingInhale: 4,
+    breathingExhale: 6,
+    breathingHold: 1,
+    restTimerMinutes: 10,
+    restTimerCount: 3,
+    finalTimerMinutes: 20,
+    scopes: "user-read-playback-state user-modify-playback-state"
+  };
+  // Altijd dezelfde redirect-URI gebruiken, ongeacht of de app via de browser
+  // (…/hiit-app/index.html) of via de tegel/manifest (…/hiit-app/) is geopend —
+  // anders wijst Spotify de aanvraag af met "redirect_uri: Not matching configuration".
+  const REDIRECT_URI = (() => {
+    let path = window.location.pathname;
+    if (path.endsWith("index.html")) path = path.slice(0, -"index.html".length);
+    return window.location.origin + path;
+  })();
+  const RING_CIRCUMFERENCE = 2 * Math.PI * 88;
+
+  /* ============ small utils ============ */
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (id) => document.getElementById(id);
+  const fmtTime = (totalSeconds) => {
+    const s = Math.max(0, Math.round(totalSeconds));
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  function showToast(msg, ms = 3200) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => t.classList.remove("show"), ms);
+  }
+
+  function setScreen(name) {
+    document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
+    $("screen-" + name).classList.add("active");
+  }
+
+  function setRing(progressEl, fraction) {
+    const offset = RING_CIRCUMFERENCE * (1 - Math.max(0, Math.min(1, fraction)));
+    progressEl.style.strokeDashoffset = offset;
+  }
+
+  /* ============ voice ============ */
+  let dutchVoice = null;
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    dutchVoice = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("nl")) || null;
+  }
+  if ("speechSynthesis" in window) {
+    pickVoice();
+    speechSynthesis.onvoiceschanged = pickVoice;
+  }
+  function speak(text) {
+    if (!("speechSynthesis" in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "nl-NL";
+      if (dutchVoice) u.voice = dutchVoice;
+      u.rate = 1;
+      speechSynthesis.speak(u);
+    } catch (e) { /* ignore */ }
+  }
+
+  /* ============ notifications (best-effort background alerts) ============ */
+  let notifyPermissionAsked = false;
+  async function ensureNotifyPermission() {
+    if (notifyPermissionAsked) return;
+    notifyPermissionAsked = true;
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch (e) { /* ignore */ }
+    }
+  }
+  async function fireNotification(title, body) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification(title, { body, icon: "icon-192.png", vibrate: [200, 100, 200] });
+      } else {
+        new Notification(title, { body });
+      }
+    } catch (e) { /* ignore */ }
+  }
+  function vibrate(pattern) {
+    if (navigator.vibrate) { try { navigator.vibrate(pattern); } catch (e) {} }
+  }
+
+  /* ============ heart rate (Bluetooth) ============ */
+  let currentHR = null;
+  let hrConnected = false;
+
+  function updateHRDisplay(hr) {
+    currentHR = hr;
+    $("hr-live").textContent = hr != null ? hr : "–";
+    $("peak-hr-num").textContent = hr != null ? hr : "–";
+    $("recovery-hr-num").textContent = hr != null ? hr : "–";
+  }
+
+  function parseHeartRate(value) {
+    const flags = value.getUint8(0);
+    const rate16 = flags & 0x1;
+    return rate16 ? value.getUint16(1, true) : value.getUint8(1);
+  }
+
+  async function connectHeartRateStrap() {
+    if (!navigator.bluetooth) {
+      showToast("Bluetooth wordt niet ondersteund in deze browser. Gebruik Chrome op Android.");
+      return;
+    }
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ["heart_rate"] }]
+      });
+      showToast(`Verbinden met ${device.name || "hartslagband"}…`);
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService("heart_rate");
+      const char = await service.getCharacteristic("heart_rate_measurement");
+      await char.startNotifications();
+      char.addEventListener("characteristicvaluechanged", (e) => {
+        const hr = parseHeartRate(e.target.value);
+        updateHRDisplay(hr);
+      });
+      device.addEventListener("gattserverdisconnected", () => {
+        hrConnected = false;
+        $("dot-hr").classList.remove("on");
+        $("hr-status-label").textContent = "Verbinding verbroken";
+        updateStartButton();
+        showToast("Hartslagband verbinding verbroken.");
+      });
+      hrConnected = true;
+      $("dot-hr").classList.add("on");
+      $("hr-status-label").textContent = "Gekoppeld";
+      updateStartButton();
+    } catch (err) {
+      console.error(err);
+      showToast("Koppelen mislukt of geannuleerd.");
+    }
+  }
+
+  function getCurrentHR() {
+    return currentHR == null ? 0 : currentHR;
+  }
+
+  /* ============ Spotify (PKCE + Web API remote control) — optioneel ============ */
+  const SP = {
+    accessToken: null,
+    refreshToken: null,
+    expiresAt: 0,
+    deviceId: null,
+    connected: false
+  };
+
+  function b64urlFromBuffer(buffer) {
+    let str = "";
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function randomString(len) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let out = "";
+    const arr = new Uint8Array(len);
+    crypto.getRandomValues(arr);
+    for (let i = 0; i < len; i++) out += chars[arr[i] % chars.length];
+    return out;
+  }
+  async function codeChallengeFromVerifier(verifier) {
+    const data = new TextEncoder().encode(verifier);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return b64urlFromBuffer(digest);
+  }
+
+  async function startSpotifyLogin() {
+    const verifier = randomString(64);
+    localStorage.setItem("hiit_sp_verifier", verifier);
+    const challenge = await codeChallengeFromVerifier(verifier);
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: CONFIG.spotifyClientId,
+      scope: CONFIG.scopes,
+      code_challenge_method: "S256",
+      code_challenge: challenge,
+      redirect_uri: REDIRECT_URI
+    });
+    window.location = "https://accounts.spotify.com/authorize?" + params.toString();
+  }
+
+  async function exchangeCodeForToken(code) {
+    const verifier = localStorage.getItem("hiit_sp_verifier");
+    const body = new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: REDIRECT_URI,
+      client_id: CONFIG.spotifyClientId,
+      code_verifier: verifier
+    });
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+    if (!res.ok) throw new Error("token exchange failed");
+    const data = await res.json();
+    storeToken(data);
+  }
+
+  function storeToken(data) {
+    SP.accessToken = data.access_token;
+    if (data.refresh_token) SP.refreshToken = data.refresh_token;
+    SP.expiresAt = Date.now() + (data.expires_in - 30) * 1000;
+    localStorage.setItem("hiit_sp_refresh", SP.refreshToken || "");
+  }
+
+  async function refreshAccessToken() {
+    if (!SP.refreshToken) SP.refreshToken = localStorage.getItem("hiit_sp_refresh");
+    if (!SP.refreshToken) throw new Error("no refresh token");
+    const body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: SP.refreshToken,
+      client_id: CONFIG.spotifyClientId
+    });
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+    if (!res.ok) throw new Error("refresh failed");
+    const data = await res.json();
+    storeToken(data);
+  }
+
+  async function ensureToken() {
+    if (!SP.accessToken || Date.now() >= SP.expiresAt) {
+      await refreshAccessToken();
+    }
+  }
+
+  async function spotifyFetch(path, method = "GET", body) {
+    await ensureToken();
+    const res = await fetch("https://api.spotify.com/v1" + path, {
+      method,
+      headers: {
+        Authorization: "Bearer " + SP.accessToken,
+        "Content-Type": "application/json"
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (res.status === 401) {
+      await refreshAccessToken();
+      return spotifyFetch(path, method, body);
+    }
+    return res;
+  }
+
+  async function fetchDevices() {
+    const res = await spotifyFetch("/me/player/devices");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.devices || [];
+  }
+
+  async function pickDevice() {
+    const devices = await fetchDevices();
+    if (devices.length === 0) {
+      showToast("Geen Spotify-apparaat gevonden. Open de Spotify-app op je telefoon en probeer opnieuw.");
+      return false;
+    }
+    if (devices.length === 1) {
+      SP.deviceId = devices[0].id;
+      return true;
+    }
+    const sel = $("device-select");
+    sel.innerHTML = "";
+    devices.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = d.name + (d.is_active ? " (actief)" : "");
+      sel.appendChild(opt);
+    });
+    sel.style.display = "block";
+    SP.deviceId = sel.value;
+    sel.onchange = () => (SP.deviceId = sel.value);
+    return true;
+  }
+
+  async function connectSpotify() {
+    try {
+      await startSpotifyLogin();
+    } catch (err) {
+      console.error(err);
+      showToast("Spotify-koppeling mislukt.");
+    }
+  }
+
+  async function finishSpotifyConnect() {
+    const ok = await pickDevice();
+    SP.connected = ok;
+    $("dot-spotify").classList.toggle("on", ok);
+    $("spotify-status-label").textContent = ok ? "Verbonden" : "Geen apparaat actief";
+    updateStartButton();
+  }
+
+  // Alle Spotify-acties zijn no-ops als er niet verbonden is — training werkt dan gewoon door, zonder muziek.
+  async function playMusic(uri, { shuffle = true } = {}) {
+    if (!SP.connected) return;
+    try {
+      await ensureToken();
+      if (!SP.deviceId) await pickDevice();
+      if (!SP.deviceId) return;
+      await spotifyFetch(`/me/player/shuffle?state=${shuffle}&device_id=${SP.deviceId}`, "PUT");
+      await spotifyFetch(`/me/player/play?device_id=${SP.deviceId}`, "PUT", { context_uri: uri });
+    } catch (err) {
+      console.error(err);
+      showToast("Kon Spotify niet starten. Is de app open op je telefoon?");
+    }
+  }
+
+  // Springt naar een ander nummer binnen dezelfde playlist (voor variatie per piek), zonder shuffle/play opnieuw te triggeren.
+  async function skipToNextTrack() {
+    if (!SP.connected) return;
+    try {
+      await ensureToken();
+      if (!SP.deviceId) await pickDevice();
+      if (!SP.deviceId) return;
+      await spotifyFetch(`/me/player/next?device_id=${SP.deviceId}`, "POST");
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function pauseMusic() {
+    if (!SP.connected) return;
+    try {
+      await ensureToken();
+      if (!SP.deviceId) return;
+      await spotifyFetch(`/me/player/pause?device_id=${SP.deviceId}`, "PUT");
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function playMusicForPeak(peakIndex) {
+    if (!SP.connected) return;
+    if (peakIndex === 1) {
+      await playMusic(CONFIG.workoutPlaylistUri, { shuffle: true });
+    } else {
+      await skipToNextTrack();
+    }
+  }
+
+  /* ============ setup screen wiring ============ */
+  function updateStartButton() {
+    // Spotify is optioneel: alleen de hartslagband is vereist om te starten.
+    $("btn-start-training").disabled = !hrConnected;
+  }
+
+  $("btn-connect-hr").addEventListener("click", connectHeartRateStrap);
+  $("btn-connect-spotify").addEventListener("click", connectSpotify);
+  $("btn-start-training").addEventListener("click", () => runWorkout());
+
+  // handle Spotify redirect back with ?code=...
+  (async function handleRedirect() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      window.history.replaceState({}, "", REDIRECT_URI);
+      try {
+        await exchangeCodeForToken(code);
+        await finishSpotifyConnect();
+        showToast("Spotify gekoppeld!");
+      } catch (err) {
+        console.error(err);
+        showToast("Spotify-koppeling mislukt.");
+      }
+    } else if (localStorage.getItem("hiit_sp_refresh")) {
+      // try silent reconnect on load
+      try {
+        await refreshAccessToken();
+        await finishSpotifyConnect();
+      } catch (e) { /* user needs to reconnect manually */ }
+    }
+  })();
+
+  /* ============ stop / skip state ============ */
+  let stopRequested = false;
+  const skipRequested = { peak: false, recovery: false, section1: false, rest: false, final: false };
+  function resetAllSkips() {
+    Object.keys(skipRequested).forEach((k) => (skipRequested[k] = false));
+  }
+
+  function requestStop() {
+    stopRequested = true;
+  }
+  ["btn-stop-1", "btn-stop-2", "btn-stop-3"].forEach((id) =>
+    $(id).addEventListener("click", () => {
+      if (confirm("Training stoppen en teruggaan naar start?")) {
+        requestStop();
+        pauseMusic();
+        setScreen("setup");
+      }
+    })
+  );
+  $("btn-restart").addEventListener("click", () => {
+    setScreen("setup");
+  });
+
+  $("btn-skip-peak").addEventListener("click", () => { skipRequested.peak = true; });
+  $("btn-skip-recovery").addEventListener("click", () => { skipRequested.recovery = true; });
+  $("btn-skip-rest").addEventListener("click", () => { skipRequested.rest = true; });
+  $("btn-skip-final").addEventListener("click", () => { skipRequested.final = true; });
+  document.querySelectorAll(".skip-section1-btn").forEach((b) =>
+    b.addEventListener("click", () => { skipRequested.section1 = true; })
+  );
+
+  /* ============ background-resilient countdown ============ */
+  // Gebruikt een vaste eindtijd (Date.now()-gebaseerd) zodat de resterende tijd altijd
+  // correct is, ook als de timer op de achtergrond (andere app) even niet ticket.
+  const activeTicks = new Set();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      activeTicks.forEach((fn) => fn());
+    }
+  });
+
+  async function countdown(totalSeconds, { progressEl, numEl, wrapEl, statusEl, mode, announceSeconds = [45, 30, 15], finalCount = 5, skipKeys = [], onDone = null }) {
+    const endAt = Date.now() + totalSeconds * 1000;
+    let lastSpokenRemaining = null;
+    let resolved = false;
+    numEl.textContent = fmtTime(totalSeconds);
+    setRing(progressEl, 0);
+
+    return new Promise((resolve) => {
+      let timeoutId = null;
+
+      function finish() {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutId);
+        activeTicks.delete(tick);
+        resolve();
+      }
+
+      function tick() {
+        if (resolved) return;
+        if (stopRequested || skipKeys.some((k) => skipRequested[k])) {
+          skipKeys.forEach((k) => (skipRequested[k] = false));
+          finish();
+          return;
+        }
+
+        if (mode === "hold") {
+          // Alleen laten aflopen zolang hartslag >= 130 is; anders pauzeren.
+          const hr = getCurrentHR();
+          updateHRDisplay(hr);
+          const active = hr >= CONFIG.hrPeakThreshold;
+          wrapEl.classList.toggle("paused", !active);
+          wrapEl.classList.toggle("hold", active);
+          if (!active) {
+            statusEl.textContent = "Hartslag te laag — omhoog naar 130!";
+            statusEl.className = "status-msg warn";
+            timeoutId = setTimeout(tick, 500);
+            return;
+          }
+          statusEl.textContent = "Volhouden!";
+          statusEl.className = "status-msg ok";
+        }
+
+        const remaining = Math.max(0, Math.round((endAt - Date.now()) / 1000));
+        numEl.textContent = fmtTime(remaining);
+        setRing(progressEl, 1 - remaining / totalSeconds);
+
+        if (mode === "hold") {
+          if (announceSeconds.includes(remaining) && lastSpokenRemaining !== remaining) {
+            speak(`${remaining} seconden`);
+            lastSpokenRemaining = remaining;
+          }
+          if (remaining <= finalCount && remaining > 0 && lastSpokenRemaining !== remaining) {
+            speak(`${remaining}`);
+            lastSpokenRemaining = remaining;
+          }
+        }
+
+        if (remaining <= 0) {
+          if (mode === "hold") speak("Piek gehaald!");
+          if (onDone) onDone();
+          finish();
+          return;
+        }
+        timeoutId = setTimeout(tick, mode === "hold" ? 1000 : 500);
+      }
+
+      activeTicks.add(tick);
+      tick();
+    });
+  }
+
+  /* ============ waiting for a heart-rate threshold (skippable) ============ */
+  async function waitForHR(threshold, mode, skipKeys) {
+    while (!stopRequested && !skipKeys.some((k) => skipRequested[k])) {
+      const hr = getCurrentHR();
+      updateHRDisplay(hr);
+      const reached = mode === ">=" ? hr >= threshold : hr <= threshold;
+      if (reached) return "reached";
+      await sleep(400);
+    }
+    if (stopRequested) return "stopped";
+    skipKeys.forEach((k) => (skipRequested[k] = false));
+    return "skipped";
+  }
+
+  async function manualStart(buttonId) {
+    return new Promise((resolve) => {
+      const btn = $(buttonId);
+      const handler = () => {
+        btn.removeEventListener("click", handler);
+        resolve();
+      };
+      btn.addEventListener("click", handler);
+    });
+  }
+
+  /* ============ breathing exercise: in (4) -> uit (6) -> vasthouden (1), min. 4x, tot HR<=100 ============ */
+  async function runOneBreathCycle(repNumber) {
+    $("breath-rep").textContent = `Herhaling ${repNumber} (minimaal ${CONFIG.breathingMinReps})`;
+    const circle = $("breath-circle");
+
+    $("breath-phase").textContent = "Adem in";
+    speak("Adem in");
+    circle.style.transform = "scale(1.25)";
+    for (let c = 1; c <= CONFIG.breathingInhale && !stopRequested && !skipRequested.recovery && !skipRequested.section1; c++) {
+      $("breath-count").textContent = c;
+      speak(String(c));
+      await sleep(1000);
+    }
+
+    $("breath-phase").textContent = "Adem uit";
+    speak("Adem uit");
+    circle.style.transform = "scale(0.85)";
+    for (let c = 1; c <= CONFIG.breathingExhale && !stopRequested && !skipRequested.recovery && !skipRequested.section1; c++) {
+      $("breath-count").textContent = c;
+      speak(String(c));
+      await sleep(1000);
+    }
+
+    $("breath-phase").textContent = "Adem inhouden";
+    speak("Adem inhouden");
+    for (let c = 1; c <= CONFIG.breathingHold && !stopRequested && !skipRequested.recovery && !skipRequested.section1; c++) {
+      $("breath-count").textContent = c;
+      speak(String(c));
+      await sleep(1000);
+    }
+    circle.style.transform = "scale(1)";
+  }
+
+  async function runBreathingLoop() {
+    $("recovery-waiting").style.display = "none";
+    $("recovery-breathing").style.display = "flex";
+
+    let rep = 0;
+    while (!stopRequested && !skipRequested.recovery && !skipRequested.section1) {
+      rep++;
+      await runOneBreathCycle(rep);
+      if (stopRequested || skipRequested.recovery || skipRequested.section1) break;
+      if (rep >= CONFIG.breathingMinReps && getCurrentHR() <= CONFIG.hrRecoveryThreshold) break;
+    }
+    skipRequested.recovery = false;
+
+    $("recovery-breathing").style.display = "none";
+    $("recovery-waiting").style.display = "block";
+  }
+
+  /* ============ recovery phase ============ */
+  async function recoverHR() {
+    setScreen("recovery");
+    $("recovery-breathing").style.display = "none";
+    $("recovery-waiting").style.display = "block";
+
+    // Muziek start meteen zodra de herstelfase begint (niet pas na wachten).
+    await playMusic(CONFIG.calmPlaylistUri, { shuffle: false });
+
+    const start = Date.now();
+    while (
+      !stopRequested &&
+      !skipRequested.recovery &&
+      !skipRequested.section1 &&
+      getCurrentHR() > CONFIG.hrRecoveryThreshold &&
+      (Date.now() - start) / 1000 < CONFIG.recoveryWaitBeforeBreathing
+    ) {
+      updateHRDisplay(getCurrentHR());
+      await sleep(400);
+    }
+
+    if (stopRequested) return;
+    if (skipRequested.recovery) { skipRequested.recovery = false; return; }
+    if (skipRequested.section1) return;
+    if (getCurrentHR() <= CONFIG.hrRecoveryThreshold) return; // al hersteld binnen 30s
+
+    await runBreathingLoop();
+  }
+
+  /* ============ peak label ============ */
+  function updatePeakUI(i) {
+    const last = i === CONFIG.totalPeaks;
+    $("peak-pill").textContent = last
+      ? `Piek ${i} van ${CONFIG.totalPeaks} · laatste piek!`
+      : `Piek ${i} van ${CONFIG.totalPeaks}`;
+  }
+
+  /* ============ main workout flow ============ */
+  async function runPeak(i) {
+    setScreen("peak");
+    updatePeakUI(i);
+    $("peak-status").textContent = "Wacht tot hartslag op of boven 130 is…";
+    $("peak-status").className = "status-msg";
+    $("peak-timer-num").textContent = fmtTime(CONFIG.peakHoldSeconds);
+    setRing($("peak-ring-progress"), 0);
+    $("peak-ring").classList.remove("paused", "hold");
+
+    const last = i === CONFIG.totalPeaks;
+    speak(last ? `Piek ${i} van ${CONFIG.totalPeaks}, dit is de laatste piek` : `Piek ${i} van ${CONFIG.totalPeaks}`);
+
+    $("peak-music-note").textContent = SP.connected ? "Werk-playlist speelt" : "Geen muziek gekoppeld";
+    await playMusicForPeak(i);
+
+    if (stopRequested) return;
+    const waitResult = await waitForHR(CONFIG.hrPeakThreshold, ">=", ["peak", "section1"]);
+    if (stopRequested || skipRequested.section1) return;
+
+    if (waitResult === "reached") {
+      speak("De timer start!");
+      await countdown(CONFIG.peakHoldSeconds, {
+        progressEl: $("peak-ring-progress"),
+        numEl: $("peak-timer-num"),
+        wrapEl: $("peak-ring"),
+        statusEl: $("peak-status"),
+        mode: "hold",
+        skipKeys: ["peak", "section1"]
+      });
+    }
+    // "skipped" -> hele piek (wachten + volhouden) wordt overgeslagen, direct door naar herstel.
+
+    if (stopRequested || skipRequested.section1) return;
+    await recoverHR();
+  }
+
+  async function runWorkout() {
+    stopRequested = false;
+    resetAllSkips();
+
+    for (let i = 1; i <= CONFIG.totalPeaks; i++) {
+      if (stopRequested) return;
+      await runPeak(i);
+      if (stopRequested) return;
+      if (skipRequested.section1) { skipRequested.section1 = false; break; }
+    }
+    if (stopRequested) return;
+
+    await pauseMusic();
+    await ensureNotifyPermission();
+    setScreen("rest");
+
+    for (let j = 1; j <= CONFIG.restTimerCount; j++) {
+      if (stopRequested) return;
+      if (skipRequested.rest) { skipRequested.rest = false; break; }
+
+      $("rest-title").textContent = `Rustperiode ${j} van ${CONFIG.restTimerCount}`;
+      $("rest-timer-num").textContent = fmtTime(CONFIG.restTimerMinutes * 60);
+      setRing($("rest-ring-progress"), 0);
+      $("btn-rest-start").style.display = "block";
+
+      await Promise.race([
+        manualStart("btn-rest-start"),
+        (async () => { while (!skipRequested.rest && !stopRequested) await sleep(200); })()
+      ]);
+      $("btn-rest-start").style.display = "none";
+      if (stopRequested) return;
+      if (skipRequested.rest) { skipRequested.rest = false; break; }
+
+      await countdown(CONFIG.restTimerMinutes * 60, {
+        progressEl: $("rest-ring-progress"),
+        numEl: $("rest-timer-num"),
+        mode: "plain",
+        skipKeys: ["rest"],
+        onDone: () => {
+          fireNotification("Rustperiode klaar!", `Rustperiode ${j} van ${CONFIG.restTimerCount} is voorbij.`);
+          vibrate([200, 100, 200]);
+        }
+      });
+    }
+    if (stopRequested) return;
+
+    setScreen("final");
+    $("final-timer-num").textContent = fmtTime(CONFIG.finalTimerMinutes * 60);
+    setRing($("final-ring-progress"), 0);
+
+    await Promise.race([
+      manualStart("btn-final-start"),
+      (async () => { while (!skipRequested.final && !stopRequested) await sleep(200); })()
+    ]);
+    $("btn-final-start").style.display = "none";
+    if (stopRequested) return;
+
+    if (!skipRequested.final) {
+      await playMusic(CONFIG.hz432PlaylistUri, { shuffle: true });
+      await countdown(CONFIG.finalTimerMinutes * 60, {
+        progressEl: $("final-ring-progress"),
+        numEl: $("final-timer-num"),
+        mode: "plain",
+        skipKeys: ["final"],
+        onDone: () => {
+          fireNotification("Training klaar!", "De laatste 20 minuten zijn voorbij.");
+          vibrate([200, 100, 200]);
+        }
+      });
+    }
+    skipRequested.final = false;
+    if (stopRequested) return;
+
+    await pauseMusic();
+    speak("Training voltooid, goed gedaan!");
+    setScreen("done");
+  }
+
+  /* ============ service worker ============ */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
