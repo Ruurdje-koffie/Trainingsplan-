@@ -804,6 +804,22 @@
     updateStartButton();
   }
 
+  // Haalt het totale aantal nummers in een playlist op, zodat we een willekeurige
+  // starttrack kunnen kiezen (Spotify start bij "play" anders altijd op hetzelfde
+  // eerste nummer, ook als shuffle aan staat).
+  async function getPlaylistTrackCount(playlistUri) {
+    try {
+      const playlistId = playlistUri.split(":").pop();
+      const res = await spotifyFetch(`/playlists/${playlistId}?fields=tracks.total`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return (data.tracks && data.tracks.total) || null;
+    } catch (err) {
+      console.error(err);
+      return null;
+    }
+  }
+
   // Alle Spotify-acties zijn no-ops als er niet verbonden is — training werkt dan gewoon door, zonder muziek.
   async function playMusic(uri, { shuffle = true } = {}) {
     if (!SP.connected) return;
@@ -812,7 +828,15 @@
       if (!SP.deviceId) await pickDevice();
       if (!SP.deviceId) return;
       await spotifyFetch(`/me/player/shuffle?state=${shuffle}&device_id=${SP.deviceId}`, "PUT");
-      await spotifyFetch(`/me/player/play?device_id=${SP.deviceId}`, "PUT", { context_uri: uri });
+
+      const body = { context_uri: uri };
+      if (shuffle) {
+        const total = await getPlaylistTrackCount(uri);
+        if (total && total > 0) {
+          body.offset = { position: Math.floor(Math.random() * total) };
+        }
+      }
+      await spotifyFetch(`/me/player/play?device_id=${SP.deviceId}`, "PUT", body);
     } catch (err) {
       console.error(err);
       showToast("Kon Spotify niet starten. Is de app open op je telefoon?");
@@ -1079,7 +1103,7 @@
     $("recovery-waiting").style.display = "block";
 
     // Muziek start meteen zodra de herstelfase begint (niet pas na wachten).
-    await playMusic(CONFIG.calmPlaylistUri, { shuffle: false });
+    await playMusic(CONFIG.calmPlaylistUri, { shuffle: true });
 
     const start = Date.now();
     while (
