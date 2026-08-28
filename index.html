@@ -845,11 +845,10 @@
 
   async function playMusicForPeak(peakIndex) {
     if (!SP.connected) return;
-    if (peakIndex === 1) {
-      await playMusic(CONFIG.workoutPlaylistUri, { shuffle: true });
-    } else {
-      await skipToNextTrack();
-    }
+    // Altijd de werk-playlist starten (met shuffle) — dit zorgt zowel voor de juiste
+    // playlist bij elke piek als voor variatie in het nummer, en voorkomt dat de app
+    // per ongeluk blijft doorspelen in de rustgevende/432Hz-playlist van de vorige fase.
+    await playMusic(CONFIG.workoutPlaylistUri, { shuffle: true });
   }
 
   /* ============ setup screen wiring ============ */
